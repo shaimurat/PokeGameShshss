@@ -8,37 +8,49 @@
 <script>
     const baseUrl = "http://localhost:8080";
 
-    async function sendEmail() {
-        const text = document.getElementById("text").value;
-        const subject = "Test Email Subject";  // Замените на реальную тему письма
-
-        // Отправляем запрос на сервер для отправки email
-        const response = await fetch(`${baseUrl}/sendEmail`, {
+    async function logOut(){
+        const response = await fetch(`${baseUrl}/logout`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                subject: subject,
-                text: text,
-            })
+            credentials: 'same-origin',
         });
 
         const result = await response.json();
+
         if (response.ok) {
-            alert(result.message);
+            alert(result.message)
+            window.location.href = "/loginPage";
         } else {
-            alert("Error: " + result.message);
+            alert("Error logging out: " + result.message);
         }
-
-        // Очистка поля ввода после отправки
-        document.getElementById("text").value = "";
     }
+    async function sendEmail() {
+        const subject = document.getElementById("subject").value;
+        const body = document.getElementById("body").value
+        document.getElementById("text").value = "";
+        const emailData = {
+            subject: subject,
+            body: body
+        }
+        const response = await fetch(`${baseUrl}/sendEmail`, {
+            method: "POST",
+            headers:{"Content-type":"application/json"},
+            body: JSON.stringify(emailData)
+        })
+        const result = await response.json()
+        if (response.ok){
+            alert(result.message)
+        }
+        else{
+            alert("An error occurred: " + result.message);
+        }
+    }
+
 </script>
-
 <h2>Send email</h2>
-<input type="text" id="text" placeholder="Write your text" required />
+<input type="text" id="subject" placeholder="Write your subject" required />
+<input type="text" id="body" placeholder="Write your subject" required />
 <button onclick="sendEmail()">Send</button>
-
+<p></p>
+<button onclick="logOut()">LogOut</button>
 </body>
 </html>

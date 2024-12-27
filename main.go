@@ -87,6 +87,7 @@ func main() {
 }
 
 func sendEmail(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("HIiiiiiii")
 	// Проверка на метод запроса
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
