@@ -5,42 +5,50 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>CRUD Operations with MongoDB</title>
         <script>
-            const baseUrl = "http://localhost:8080/login";
-
+            const baseUrl = "http://localhost:8080";
+            async function goToReg(){
+                window.location.href = "/registerPage";
+            }
             async function login() {
                 const email = document.getElementById("email").value;
                 const password = document.getElementById("password").value;
-                // Валидация
-                    if (!email || !password) {
-                    alert("email or password required.");
+
+                // Validation
+                if (!email || !password) {
+                    alert("Email and password are required.");
                     return;
                 }
 
-                const response = await fetch(`${baseUrl}/read?email=${email}`);
-                const result = await response.json();
+                try {
+                    const response = await fetch("http://localhost:8080/login", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ email, password }),
+                    });
 
-                if (result.status === "success") {
-                    const passwordDb = result.password
-                    if (passwordDb===password){
-                        alert("You logged in");
-                        window.location.href = `${baseUrl}/main`;
+                    const result = await response.json();
+
+                    if (result.status === "success") {
+                        alert("You logged in successfully");
+                        window.location.href = "/mainPage"; // Redirect to the main page
+                    } else {
+                        alert(result.message);
                     }
-                } else {
-                    alert(result.message);
+                } catch (error) {
+                    alert("An error occurred: " + error.message);
                 }
-
-                document.getElementById("readID").value = "";
             }
+
         </script>
     </head>
     <body>
-    <h1>CRUD Operations with MongoDB</h1>
+    <h1>Login</h1>
 
-    <h2>Login</h2>
     <input type="email" id="email" placeholder="email" required />
     <input type="password" id="password" placeholder="password" required />
     <button onclick="login()">Login</button>
-
+    <p></p>
+    <button onclick="goToReg()">Register</button>
 
     </body>
     </html>
