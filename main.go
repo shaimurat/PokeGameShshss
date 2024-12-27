@@ -80,68 +80,79 @@ func main() {
 	http.HandleFunc("/mainPage", serveMain)
 	http.HandleFunc("/registerPage", serveIndex)
 	http.HandleFunc("/logout", logout)
-	http.HandleFunc("/sendEmail", sendEmailHandler)
+	http.HandleFunc("/sendEmail", sendEmail)
 	http.HandleFunc("/checkLoginStatus", checkLoginStatus)
 	log.Println("Server running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func sendEmail(to string, subject string, body string) error {
-	from := "pokegamesup@gmail.com" // Укажите свой email
-	password := "Danial_2005"       // Укажите свой пароль или приложение для пароля Gmail
-
-	// Настройка SMTP-сервера
-	smtpHost := "smtp.gmail.com"
-	smtpPort := "587"
-	auth := smtp.PlainAuth("", from, password, smtpHost)
-
-	// Создание сообщения
-	msg := []byte("To: " + to + "\r\n" +
-		"Subject: " + subject + "\r\n" +
-		"\r\n" +
-		body + "\r\n")
-
-	// Отправка email
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, msg)
-	return err
-}
-
-func sendEmailHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("dany")
-	if !checkSession(w, r) {
-		http.Redirect(w, r, "/loginPage", http.StatusFound)
+func sendEmail(w http.ResponseWriter, r *http.Request) {
+	// Проверка на метод запроса
+	if r.Method != "POST" {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
+	// Получаем данные из запроса
 	var emailData struct {
 		Subject string `json:"subject"`
-		Body    string `json:"body"`
+		Text    string `json:"text"`
 	}
+
 	err := json.NewDecoder(r.Body).Decode(&emailData)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
+
+	// Получаем email пользователя из сессии
 	session, _ := store.Get(r, "session-name")
 	userID, ok := session.Values["userID"].(string)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, "User not logged in", http.StatusUnauthorized)
 		return
 	}
+
+	// Получаем email пользователя из базы данных
 	var user User
-	objectId, err := primitive.ObjectIDFromHex(userID)
-	err = collection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(&user)
+	objectID, _ := primitive.ObjectIDFromHex(userID)
+	err = collection.FindOne(context.TODO(), bson.M{"_id": objectID}).Decode(&user)
 	if err != nil {
-		http.Error(w, "User Not Found", http.StatusNotFound)
-	}
-	emailBody := fmt.Sprintf("Email of the logged-in user: %s\n\n%s", user.Email, emailData.Body)
-	to := "hdhdgddh455@gmail.com"
-	err = sendEmail(to, emailBody, user.Email)
-	if err != nil {
-		http.Error(w, "User Not Found", http.StatusNotFound)
+		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
+
+	// Отправка email
+	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Text)
+	if err != nil {
+		http.Error(w, "Failed to send email", http.StatusInternalServerError)
+		return
+	}
+
+	// Ответ об успешной отправке
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Email sent successfully"})
+}
+
+// Функция для отправки email через SMTP
+func sendEmailUsingSMTP(fromEmail, subject, text string) error {
+	// SMTP сервер, откуда будет отправляться письмо
+	smtpHost := "smtp.gmail.com"
+	smtpPort := "587"
+
+	// Логин и пароль для аккаунта отправителя
+	username := os.Getenv("SMTP_USER") // Поменяйте на свою переменную окружения
+	password := os.Getenv("SMTP_PASS") // Поменяйте на свою переменную окружения
+
+	// Данные письма
+	toEmail := "hdhdgddh455@gmail.com"
+	body := fmt.Sprintf("Subject: %s\n\n%s", subject, text)
+
+	// Создаем аутентификацию для отправки письма
+	auth := smtp.PlainAuth("", username, password, smtpHost)
+
+	// Отправляем письмо
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, fromEmail, []string{toEmail}, []byte(body))
+	return err
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
