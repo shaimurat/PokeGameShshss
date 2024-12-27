@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
@@ -12,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"net/smtp"
 	"os"
 	"time"
 )
@@ -78,8 +80,68 @@ func main() {
 	http.HandleFunc("/mainPage", serveMain)
 	http.HandleFunc("/registerPage", serveIndex)
 	http.HandleFunc("/logout", logout)
+	http.HandleFunc("/sendEmail", sendEmailHandler)
+	http.HandleFunc("/checkLoginStatus", checkLoginStatus)
 	log.Println("Server running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func sendEmail(to string, subject string, body string) error {
+	from := "pokegamesup@gmail.com" // Укажите свой email
+	password := "Danial_2005"       // Укажите свой пароль или приложение для пароля Gmail
+
+	// Настройка SMTP-сервера
+	smtpHost := "smtp.gmail.com"
+	smtpPort := "587"
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	// Создание сообщения
+	msg := []byte("To: " + to + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"\r\n" +
+		body + "\r\n")
+
+	// Отправка email
+	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, from, []string{to}, msg)
+	return err
+}
+
+func sendEmailHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("dany")
+	if !checkSession(w, r) {
+		http.Redirect(w, r, "/loginPage", http.StatusFound)
+		return
+	}
+
+	var emailData struct {
+		Subject string `json:"subject"`
+		Body    string `json:"body"`
+	}
+	err := json.NewDecoder(r.Body).Decode(&emailData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	session, _ := store.Get(r, "session-name")
+	userID, ok := session.Values["userID"].(string)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var user User
+	objectId, err := primitive.ObjectIDFromHex(userID)
+	err = collection.FindOne(context.TODO(), bson.M{"_id": objectId}).Decode(&user)
+	if err != nil {
+		http.Error(w, "User Not Found", http.StatusNotFound)
+	}
+	emailBody := fmt.Sprintf("Email of the logged-in user: %s\n\n%s", user.Email, emailData.Body)
+	to := "hdhdgddh455@gmail.com"
+	err = sendEmail(to, emailBody, user.Email)
+	if err != nil {
+		http.Error(w, "User Not Found", http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Email sent successfully"})
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -159,7 +221,17 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Login successful"})
 }
-
+func checkLoginStatus(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "session-name")
+	userID, ok := session.Values["userID"].(string)
+	if ok && userID != "" {
+		// Если пользователь залогинен, возвращаем статус logged_in
+		json.NewEncoder(w).Encode(map[string]string{"status": "logged_in"})
+	} else {
+		// Если пользователь не залогинен, возвращаем статус not_logged_in
+		json.NewEncoder(w).Encode(map[string]string{"status": "not_logged_in"})
+	}
+}
 func serveLogin(w http.ResponseWriter, r *http.Request) {
 	// Если пользователь уже залогинен, перенаправляем на главную страницу
 	if checkSession(w, r) {

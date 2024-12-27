@@ -18,22 +18,39 @@
 
         if (response.ok) {
             alert(result.message)
-            window.location.href = "/registerPage";
+            window.location.href = "/loginPage";
         } else {
             alert("Error logging out: " + result.message);
         }
     }
     async function sendEmail() {
-        const text = document.getElementById("text").value;
-
+        const subject = document.getElementById("subject").value;
+        const body = document.getElementById("body").value
         document.getElementById("text").value = "";
+        const emailData = {
+            subject: subject,
+            body: body
+        }
+        const response = await fetch(`${baseUrl}/sendEmail`, {
+            method: "POST",
+            headers:{"Content-type":"application/json"},
+            body: JSON.stringify(emailData)
+        })
+        const result = await response.json()
+        if (response.ok){
+            alert(result.message)
+        }
+        else{
+            alert("An error occurred: " + result.message);
+        }
     }
 
 </script>
 <h2>Send email</h2>
-<input type="text" id="text" placeholder="Write your text" required />
-<button onclick="sendEmail()">Send</button>>
+<input type="text" id="subject" placeholder="Write your subject" required />
+<input type="text" id="body" placeholder="Write your subject" required />
+<button onclick="sendEmail()">Send</button>
 <p></p>
-<button onclick="logOut()">LogOut</button>>
+<button onclick="logOut()">LogOut</button>
 </body>
 </html>
