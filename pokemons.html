@@ -67,8 +67,11 @@
         const baseUrl = "http://localhost:8080";
         let pokemons = [];
         let filteredPokemons = [];
-        const pokemonsPerPage = 6;
+        let pokemonsPerPage = 6;
         let currentPage = 1;
+
+
+
 
         async function fetchPokemons() {
             const response = await fetch(`${baseUrl}/pokemons`);
@@ -77,6 +80,14 @@
             displayPokemons();
             displayPagination();
             populateFilter();
+            numPerPage()
+        }
+
+        function showNumPokemons(num){
+            pokemonsPerPage = num
+            currentPage = 1;
+            displayPokemons();
+            displayPagination();
         }
 
         // Фильтрация по типу
@@ -98,7 +109,9 @@
             const startIndex = (currentPage - 1) * pokemonsPerPage;
             const endIndex = startIndex + pokemonsPerPage;
             const pokemonsToDisplay = filteredPokemons.slice(startIndex, endIndex);
-
+            pokemonsToDisplay.sort((pokemon1, pokemon2)=>{
+                return pokemon1.name > pokemon2.name
+            })
             pokemonsToDisplay.forEach(pokemon => {
                 const card = document.createElement("div");
                 card.className = "pokemon-card";
@@ -131,13 +144,24 @@
 
         function populateFilter() {
             const filterContainer = document.querySelector("#pokemonTypeFilter");
-            const types = ["All", "Fire", "Water", "Grass", "Electric", "Psychic"];  // Пример типов покемонов
+            const types = ["Grass", "Fire", "Water", "Electric", "Fairy", "Normal", "Fighting", "Ghost", "Rock", "Psychic", "Bug", "Dark", "Steel", "Ice", "Dragon"];
 
             types.forEach(type => {
                 const option = document.createElement("option");
                 option.value = type;
                 option.innerText = type;
                 filterContainer.appendChild(option);
+            });
+        }
+
+        function numPerPage(){
+            const numContainer = document.querySelector("#pokemonNum");
+            const nums = [6,12,18,24]
+            nums.forEach(num => {
+                const option = document.createElement("option");
+                option.value = num.toString();
+                option.innerText = num.toString();
+                numContainer.appendChild(option);
             });
         }
 
@@ -153,11 +177,15 @@
         <!-- Опции будут добавляться динамически -->
     </select>
 </div>
-
+<div class="paging_num">
+    <label for="pokemonNum">Number Of pokemons per page: </label>
+    <select id="pokemonNum" onchange="showNumPokemons(this.value)">
+    </select>
+</div>
 <div class="pokemon-container"></div>
-
+<p></p>
 <div class="pagination"></div>
-
+<p></p>
 <button onclick="window.location.href='/mainPage'">Back to Main</button>
 </body>
 </html>

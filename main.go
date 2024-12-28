@@ -61,7 +61,8 @@ func main() {
 	}
 
 	// MongoDB connection setup
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	serverAPI := options.ServerAPI(options.ServerAPIVersion1)
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017/").SetServerAPIOptions(serverAPI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
 		log.Fatal(err)
@@ -107,13 +108,13 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		Subject string `json:"subject"`
 		Text    string `json:"text"`
 	}
-	fmt.Println("HIiiiiiii")
+
 	err := json.NewDecoder(r.Body).Decode(&emailData)
 	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
-	fmt.Println("HI1")
+
 	// Получаем email пользователя из сессии
 	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
@@ -121,7 +122,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not logged in", http.StatusUnauthorized)
 		return
 	}
-	fmt.Println("HI2")
+
 	// Получаем email пользователя из базы данных
 	var user User
 	objectID, _ := primitive.ObjectIDFromHex(userID)
@@ -130,7 +131,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
-	fmt.Println("HI3")
+
 	// Отправка email
 	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Text)
 	if err != nil {
@@ -144,7 +145,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 
 // Функция для отправки email через SMTP
 func sendEmailUsingSMTP(fromEmail, subject, text string) error {
-	fmt.Println("HI4")
+
 	// SMTP сервер, откуда будет отправляться письмо
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
@@ -152,17 +153,17 @@ func sendEmailUsingSMTP(fromEmail, subject, text string) error {
 	// Логин и пароль для аккаунта отправителя
 	username := os.Getenv("SMTP_USER") // Поменяйте на свою переменную окружения
 	password := os.Getenv("SMTP_PASS") // Поменяйте на свою переменную окружения
-	fmt.Println("HI5")
+
 	// Данные письма
 	toEmail := "hdhdgddh455@gmail.com"
 	body := fmt.Sprintf("Subject: %s\n\n%s", subject, text)
-	fmt.Println("HI6")
+
 	// Создаем аутентификацию для отправки письма
 	auth := smtp.PlainAuth("", username, password, smtpHost)
-	fmt.Println("HI6")
+
 	// Отправляем письмо
 	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, fromEmail, []string{toEmail}, []byte(body))
-	fmt.Println("HI7")
+
 	return err
 }
 
