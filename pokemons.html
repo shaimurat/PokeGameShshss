@@ -22,7 +22,7 @@
             border: 1px solid #ccc;
             border-radius: 8px;
             padding: 16px;
-            width: 30%; /* Три карточки в ряду */
+            width: 30%;
             box-sizing: border-box;
             text-align: center;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -37,13 +37,13 @@
 
         @media (max-width: 768px) {
             .pokemon-card {
-                width: 45%; /* Два покемона в ряд для меньших экранов */
+                width: 45%;
             }
         }
 
         @media (max-width: 480px) {
             .pokemon-card {
-                width: 100%; /* Один покемон в ряд для мобильных устройств */
+                width: 100%;
             }
         }
 
@@ -59,8 +59,12 @@
             cursor: pointer;
         }
 
-        .filter-container {
+        .filter-container, .sorting-container {
             margin-top: 20px;
+        }
+
+        .sorting-container button {
+            margin: 0 5px;
         }
     </style>
     <script>
@@ -69,49 +73,59 @@
         let filteredPokemons = [];
         let pokemonsPerPage = 6;
         let currentPage = 1;
-
-
-
+        let sortAttribute = null;
+        let sortDirection = null;
 
         async function fetchPokemons() {
             const response = await fetch(`${baseUrl}/pokemons`);
             pokemons = await response.json();
-            filteredPokemons = pokemons;  // Изначально все покемоны отображаются
+            filteredPokemons = pokemons;
             displayPokemons();
             displayPagination();
             populateFilter();
-            numPerPage()
+            numPerPage();
         }
 
-        function showNumPokemons(num){
-            pokemonsPerPage = num
+        function showNumPokemons(num) {
+            pokemonsPerPage = num;
             currentPage = 1;
             displayPokemons();
             displayPagination();
         }
 
-        // Фильтрация по типу
         function filterByType(type) {
             if (type === "All") {
                 filteredPokemons = pokemons;
             } else {
                 filteredPokemons = pokemons.filter(pokemon => pokemon.type === type);
             }
-            currentPage = 1;  // После изменения фильтра, сбрасываем страницу на первую
+            currentPage = 1;
             displayPokemons();
             displayPagination();
         }
 
+        function sortPokemons(attribute, direction) {
+            sortAttribute = attribute;
+            sortDirection = direction;
+
+            filteredPokemons.sort((a, b) => {
+                if (a[attribute] < b[attribute]) return direction === 'asc' ? -1 : 1;
+                if (a[attribute] > b[attribute]) return direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            currentPage = 1;
+            displayPokemons();
+        }
+
         function displayPokemons() {
             const container = document.querySelector(".pokemon-container");
-            container.innerHTML = ""; // Clear previous content
+            container.innerHTML = "";
 
             const startIndex = (currentPage - 1) * pokemonsPerPage;
             const endIndex = startIndex + pokemonsPerPage;
             const pokemonsToDisplay = filteredPokemons.slice(startIndex, endIndex);
-            pokemonsToDisplay.sort((pokemon1, pokemon2)=>{
-                return pokemon1.name > pokemon2.name
-            })
+
             pokemonsToDisplay.forEach(pokemon => {
                 const card = document.createElement("div");
                 card.className = "pokemon-card";
@@ -127,7 +141,7 @@
 
         function displayPagination() {
             const paginationContainer = document.querySelector(".pagination");
-            paginationContainer.innerHTML = ""; // Clear previous pagination
+            paginationContainer.innerHTML = "";
 
             const totalPages = Math.ceil(filteredPokemons.length / pokemonsPerPage);
 
@@ -144,7 +158,7 @@
 
         function populateFilter() {
             const filterContainer = document.querySelector("#pokemonTypeFilter");
-            const types = ["Grass", "Fire", "Water", "Electric", "Fairy", "Normal", "Fighting", "Ghost", "Rock", "Psychic", "Bug", "Dark", "Steel", "Ice", "Dragon"];
+            const types = ["All", "Grass", "Fire", "Water", "Electric", "Fairy", "Normal", "Fighting", "Ghost", "Rock", "Psychic", "Bug", "Dark", "Steel", "Ice", "Dragon"];
 
             types.forEach(type => {
                 const option = document.createElement("option");
@@ -154,9 +168,9 @@
             });
         }
 
-        function numPerPage(){
+        function numPerPage() {
             const numContainer = document.querySelector("#pokemonNum");
-            const nums = [6,12,18,24]
+            const nums = [6, 12, 18, 24];
             nums.forEach(num => {
                 const option = document.createElement("option");
                 option.value = num.toString();
@@ -171,21 +185,29 @@
 <body>
 <h1>Pokemon List</h1>
 
+<div class="sorting-container">
+    <label>Sort By:</label>
+    <button onclick="sortPokemons('name', 'asc')">Name ↑</button>
+    <button onclick="sortPokemons('name', 'desc')">Name ↓</button>
+    <button onclick="sortPokemons('type', 'asc')">Type ↑</button>
+    <button onclick="sortPokemons('type', 'desc')">Type ↓</button>
+</div>
+
 <div class="filter-container">
     <label for="pokemonTypeFilter">Filter by Type: </label>
     <select id="pokemonTypeFilter" onchange="filterByType(this.value)">
-        <!-- Опции будут добавляться динамически -->
     </select>
 </div>
+
 <div class="paging_num">
     <label for="pokemonNum">Number Of pokemons per page: </label>
     <select id="pokemonNum" onchange="showNumPokemons(this.value)">
     </select>
 </div>
+
 <div class="pokemon-container"></div>
-<p></p>
 <div class="pagination"></div>
-<p></p>
+
 <button onclick="window.location.href='/mainPage'">Back to Main</button>
 </body>
 </html>
