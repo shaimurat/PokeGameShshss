@@ -59,16 +59,34 @@
             cursor: pointer;
         }
 
+        .filter-container {
+            margin-top: 20px;
+        }
     </style>
     <script>
         const baseUrl = "http://localhost:8080";
         let pokemons = [];
+        let filteredPokemons = [];
         const pokemonsPerPage = 6;
         let currentPage = 1;
 
         async function fetchPokemons() {
             const response = await fetch(`${baseUrl}/pokemons`);
             pokemons = await response.json();
+            filteredPokemons = pokemons;  // Изначально все покемоны отображаются
+            displayPokemons();
+            displayPagination();
+            populateFilter();
+        }
+
+        // Фильтрация по типу
+        function filterByType(type) {
+            if (type === "All") {
+                filteredPokemons = pokemons;
+            } else {
+                filteredPokemons = pokemons.filter(pokemon => pokemon.type === type);
+            }
+            currentPage = 1;  // После изменения фильтра, сбрасываем страницу на первую
             displayPokemons();
             displayPagination();
         }
@@ -79,7 +97,7 @@
 
             const startIndex = (currentPage - 1) * pokemonsPerPage;
             const endIndex = startIndex + pokemonsPerPage;
-            const pokemonsToDisplay = pokemons.slice(startIndex, endIndex);
+            const pokemonsToDisplay = filteredPokemons.slice(startIndex, endIndex);
 
             pokemonsToDisplay.forEach(pokemon => {
                 const card = document.createElement("div");
@@ -98,7 +116,7 @@
             const paginationContainer = document.querySelector(".pagination");
             paginationContainer.innerHTML = ""; // Clear previous pagination
 
-            const totalPages = Math.ceil(pokemons.length / pokemonsPerPage);
+            const totalPages = Math.ceil(filteredPokemons.length / pokemonsPerPage);
 
             for (let i = 1; i <= totalPages; i++) {
                 const button = document.createElement("button");
@@ -111,13 +129,35 @@
             }
         }
 
+        function populateFilter() {
+            const filterContainer = document.querySelector("#pokemonTypeFilter");
+            const types = ["All", "Fire", "Water", "Grass", "Electric", "Psychic"];  // Пример типов покемонов
+
+            types.forEach(type => {
+                const option = document.createElement("option");
+                option.value = type;
+                option.innerText = type;
+                filterContainer.appendChild(option);
+            });
+        }
+
         window.onload = fetchPokemons;
     </script>
 </head>
 <body>
 <h1>Pokemon List</h1>
+
+<div class="filter-container">
+    <label for="pokemonTypeFilter">Filter by Type: </label>
+    <select id="pokemonTypeFilter" onchange="filterByType(this.value)">
+        <!-- Опции будут добавляться динамически -->
+    </select>
+</div>
+
 <div class="pokemon-container"></div>
+
 <div class="pagination"></div>
+
 <button onclick="window.location.href='/mainPage'">Back to Main</button>
 </body>
 </html>
