@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokemon List</title>
+    <style>
+        .pokemon-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px;
+            width: 200px;
+            text-align: center;
+            display: inline-block;
+        }
+        .pokemon-card img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+    <script>
+        const baseUrl = "http://localhost:8080";
+
+        async function fetchPokemons() {
+            const response = await fetch(`${baseUrl}/pokemons`);
+            const pokemons = await response.json();
+
+            const container = document.getElementById("pokemon-container");
+            container.innerHTML = ""; // Очистить контейнер перед добавлением новых элементов
+
+            pokemons.forEach(pokemon => {
+                const card = document.createElement("div");
+                card.className = "pokemon-card";
+                card.innerHTML = `
+                    <h3>${pokemon.name}</h3>
+                    <img src="${pokemon.path}" alt="${pokemon.name}">
+                    <p><strong>Type:</strong> ${pokemon.type}</p>
+                    <p>${pokemon.desc}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        window.onload = fetchPokemons;
+    </script>
+</head>
+<body>
+<h1>Pokemon List</h1>
+<div id="pokemon-container"></div>
+
+</body>
+</html>

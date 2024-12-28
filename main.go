@@ -23,6 +23,14 @@ var (
 	store      *sessions.CookieStore
 )
 
+type Pokemon struct {
+	ID   primitive.ObjectID `bson:"_id,omitempty" json:"id"`
+	Name string             `bson:"name" json:"name"`
+	Desc string             `bson:"desc" json:"desc"`
+	Type string             `bson:"type" json:"type"`
+	Path string             `bson:"path" json:"path"`
+}
+
 type User struct {
 	ID       primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	Email    string             `bson:"email" json:"email"`
@@ -82,38 +90,38 @@ func main() {
 	http.HandleFunc("/logout", logout)
 	http.HandleFunc("/sendEmail", sendEmail)
 	http.HandleFunc("/checkLoginStatus", checkLoginStatus)
+	http.HandleFunc("/pokemonsPage", servePokemonsPage)
+	http.HandleFunc("/pokemons", getPokemonsHandler)
 	log.Println("Server running on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func sendEmail(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("HIiiiiiii")
-	// Проверка на метод запроса
+
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Получаем данные из запроса
 	var emailData struct {
 		Subject string `json:"subject"`
 		Text    string `json:"text"`
 	}
-
+	fmt.Println("HIiiiiiii")
 	err := json.NewDecoder(r.Body).Decode(&emailData)
 	if err != nil {
 		http.Error(w, "Invalid data", http.StatusBadRequest)
 		return
 	}
-
+	fmt.Println("HI1")
 	// Получаем email пользователя из сессии
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
 	if !ok {
 		http.Error(w, "User not logged in", http.StatusUnauthorized)
 		return
 	}
-
+	fmt.Println("HI2")
 	// Получаем email пользователя из базы данных
 	var user User
 	objectID, _ := primitive.ObjectIDFromHex(userID)
@@ -122,7 +130,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
 	}
-
+	fmt.Println("HI3")
 	// Отправка email
 	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Text)
 	if err != nil {
@@ -136,6 +144,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 
 // Функция для отправки email через SMTP
 func sendEmailUsingSMTP(fromEmail, subject, text string) error {
+	fmt.Println("HI4")
 	// SMTP сервер, откуда будет отправляться письмо
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
@@ -143,22 +152,23 @@ func sendEmailUsingSMTP(fromEmail, subject, text string) error {
 	// Логин и пароль для аккаунта отправителя
 	username := os.Getenv("SMTP_USER") // Поменяйте на свою переменную окружения
 	password := os.Getenv("SMTP_PASS") // Поменяйте на свою переменную окружения
-
+	fmt.Println("HI5")
 	// Данные письма
 	toEmail := "hdhdgddh455@gmail.com"
 	body := fmt.Sprintf("Subject: %s\n\n%s", subject, text)
-
+	fmt.Println("HI6")
 	// Создаем аутентификацию для отправки письма
 	auth := smtp.PlainAuth("", username, password, smtpHost)
-
+	fmt.Println("HI6")
 	// Отправляем письмо
 	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, fromEmail, []string{toEmail}, []byte(body))
+	fmt.Println("HI7")
 	return err
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
 	// Получаем сессию
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "")
 
 	// Удаляем все данные из сессии
 	session.Values = nil
@@ -227,14 +237,14 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Если пользователь найден и пароль совпадает, сохраняем сессию
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "PokeGame")
 	session.Values["userID"] = dbUser.ID.Hex() // Сохраняем ID пользователя в сессии
 	session.Save(r, w)                         // Сохраняем сессию
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Login successful"})
 }
 func checkLoginStatus(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
 	if ok && userID != "" {
 		// Если пользователь залогинен, возвращаем статус logged_in
@@ -285,7 +295,7 @@ func checkPasswordHash(password, hash string) bool {
 }
 
 func emailHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -302,7 +312,7 @@ func emailHandler(w http.ResponseWriter, r *http.Request) {
 }
 func checkSession(w http.ResponseWriter, r *http.Request) bool {
 	// Получаем сессию
-	session, _ := store.Get(r, "session-name")
+	session, _ := store.Get(r, "PokeGame")
 
 	// Проверяем, есть ли в сессии значение userID
 	userID, ok := session.Values["userID"].(string)
@@ -310,4 +320,44 @@ func checkSession(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	return false
+}
+
+func getPokemonsHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "PokeGame")
+	_, ok := session.Values["userID"]
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var pokemons []Pokemon
+	cursor, err := collection.Database().Collection("pokemons").Find(context.TODO(), bson.M{})
+	if err != nil {
+		http.Error(w, "Failed to fetch pokemons", http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.TODO())
+
+	for cursor.Next(context.TODO()) {
+		var pokemon Pokemon
+		if err := cursor.Decode(&pokemon); err != nil {
+			http.Error(w, "Error decoding pokemon data", http.StatusInternalServerError)
+			return
+		}
+		pokemons = append(pokemons, pokemon)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(pokemons)
+}
+
+func servePokemonsPage(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "PokeGame")
+	_, ok := session.Values["userID"]
+	if !ok {
+		http.Redirect(w, r, "/loginPage", http.StatusFound)
+		return
+	}
+
+	http.ServeFile(w, r, "./pokemons.html")
 }
