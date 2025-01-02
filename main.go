@@ -43,6 +43,10 @@ type User struct {
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	// Setup logging configuration
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetOutput(os.Stdout)
@@ -61,7 +65,7 @@ func main() {
 	}()
 
 	// Load environment variables from .env file
-	err := godotenv.Load()
+	err = godotenv.Load()
 	if err != nil {
 		logger.Fatal("Error loading .env file")
 	}
@@ -220,8 +224,8 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 func sendEmailUsingSMTP(fromEmail, subject, text string) error {
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
-	username := "isiki.edenovy@gmail.com"
-	password := "lswy dyxe pnjd sjkk"
+	username := os.Getenv("SMTP_USER")
+	password := os.Getenv("SMTP_PASS")
 	toEmail := "hdhdgddh455@gmail.com"
 	body := fmt.Sprintf("Subject: %s\n\n%s\n\nFrom: %s", subject, text, fromEmail)
 
