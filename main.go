@@ -6,21 +6,27 @@ import (
 	"fmt"
 	"github.com/gorilla/sessions"
 	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/time/rate"
 	"log"
 	"net/http"
 	"net/smtp"
 	"os"
+	"os/signal"
+
 	"time"
 )
 
 var (
-	collection *mongo.Collection
-	store      *sessions.CookieStore
+	collection  *mongo.Collection
+	store       *sessions.CookieStore
+	rateLimiter = rate.NewLimiter(1, 5) // 1 request per second with a burst of 5
+	logger      = logrus.New()
 )
 
 type Pokemon struct {
@@ -38,26 +44,41 @@ type User struct {
 }
 
 func main() {
+	// Setup logging
+	logger.SetFormatter(&logrus.JSONFormatter{})
+	logger.SetOutput(os.Stdout)
+	logger.SetLevel(logrus.InfoLevel)
 
+	// Graceful shutdown setup
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		<-sigs
+		logger.Info("Graceful shutdown initiated")
+		cancel()
+	}()
+
+	// Load environment variables
 	err := godotenv.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		logger.Fatal("Error loading .env file")
 	}
 
-	// Получаем переменную окружения
 	sessionKey := os.Getenv("SESSION_KEY")
 	if sessionKey == "" {
-		log.Fatal("SESSION_KEY environment variable is not set")
+		logger.Fatal("SESSION_KEY environment variable is not set")
 	}
 
-	// Инициализация хранилища сессий
 	store = sessions.NewCookieStore([]byte(sessionKey))
 	store.Options = &sessions.Options{
 		Path:     "/",
-		MaxAge:   60 * 60,                 // 1 час
-		HttpOnly: true,                    // Защита от XSS
-		Secure:   false,                   // Используйте true в продакшене (требуется HTTPS)
-		SameSite: http.SameSiteStrictMode, // Жесткая политика SameSite
+		MaxAge:   60 * 60,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteStrictMode,
 	}
 
 	// MongoDB connection setup
@@ -65,36 +86,84 @@ func main() {
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017/").SetServerAPIOptions(serverAPI)
 	client, err := mongo.Connect(context.TODO(), clientOptions)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
-
-	// Check the connection
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 
 	err = client.Ping(ctx, nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	// Set collection variable to interact with MongoDB
 	collection = client.Database("PokeGame").Collection("users")
-	log.Println("Connected to MongoDB!")
+	logger.Info("Connected to MongoDB!")
 
-	// Routes
+	// Start server
+	http.HandleFunc("/register", rateLimitMiddleware(registration))
+	http.HandleFunc("/login", rateLimitMiddleware(login))
+	http.HandleFunc("/logout", rateLimitMiddleware(logout))
+	http.HandleFunc("/sendEmail", rateLimitMiddleware(sendEmail))
+	http.HandleFunc("/checkLoginStatus", rateLimitMiddleware(checkLoginStatus))
+	http.HandleFunc("/pokemons", rateLimitMiddleware(getPokemonsHandler))
+	http.HandleFunc("/riskyOperation", rateLimitMiddleware(riskyOperationHandler))
 	http.Handle("/", http.FileServer(http.Dir("./")))
-	http.HandleFunc("/register", registration)
-	http.HandleFunc("/loginPage", serveLogin)
-	http.HandleFunc("/login", login)
-	http.HandleFunc("/mainPage", serveMain)
-	http.HandleFunc("/registerPage", serveIndex)
-	http.HandleFunc("/logout", logout)
-	http.HandleFunc("/sendEmail", sendEmail)
-	http.HandleFunc("/checkLoginStatus", checkLoginStatus)
-	http.HandleFunc("/pokemonsPage", servePokemonsPage)
-	http.HandleFunc("/pokemons", getPokemonsHandler)
-	log.Println("Server running on http://localhost:8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/loginPage", rateLimitMiddleware(serveLogin))
+	http.HandleFunc("/mainPage", rateLimitMiddleware(serveMain))
+	http.HandleFunc("/registerPage", rateLimitMiddleware(serveIndex))
+	http.HandleFunc("/pokemonsPage", rateLimitMiddleware(servePokemonsPage))
+
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: http.DefaultServeMux,
+	}
+
+	logger.Info("Server running on http://localhost:8080")
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Fatalf("Server failed: %v", err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		logger.Errorf("Error during server shutdown: %v", err)
+	}
+	logger.Info("Server gracefully stopped")
+}
+
+func riskyOperationHandler(w http.ResponseWriter, r *http.Request) {
+	logger.Info("Executing risky operation")
+
+	err := riskyOperation()
+	if err != nil {
+		logger.WithError(err).Error("Risky operation failed")
+		http.Error(w, "Risky operation failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Risky operation succeeded"))
+}
+
+func riskyOperation() error {
+	if time.Now().Unix()%2 == 0 {
+		return fmt.Errorf("simulated error")
+	}
+	return nil
+}
+
+func rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !rateLimiter.Allow() {
+			logger.Warn("Rate limit exceeded")
+			http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		}
+		next(w, r)
+	}
 }
 
 func sendEmail(w http.ResponseWriter, r *http.Request) {
@@ -170,12 +239,12 @@ func sendEmailUsingSMTP(fromEmail, subject, text string) error {
 
 func logout(w http.ResponseWriter, r *http.Request) {
 	// Получаем сессию
-	session, _ := store.Get(r, "")
+	session, _ := store.Get(r, "PokeGame")
 
 	// Удаляем все данные из сессии
 	session.Values = nil
-	session.Options.MaxAge = -1 // Устанавливаем время жизни сессии в -1, чтобы удалить её
-	session.Save(r, w)
+	session.Options.MaxAge = -1 // Set session expiry to -1
+	session.Save(r, w)          // Save the session
 
 	// Возвращаем ответ о успешном логауте
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Logged out"})
