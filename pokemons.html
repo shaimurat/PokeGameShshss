@@ -6,8 +6,40 @@
     <title>Pokemon List</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #333;
+            margin: 20px 0;
+        }
+
+        .sorting-container, .filter-container, .paging_num {
+            margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .sorting-container button, .paging_num select, .filter-container select {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .sorting-container button:hover, .paging_num select:hover, .filter-container select:hover {
+            background-color: #45a049;
         }
 
         .pokemon-container {
@@ -26,7 +58,12 @@
             box-sizing: border-box;
             text-align: center;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            background-color: #f9f9f9;
+            background-color: #fff;
+            transition: transform 0.3s ease;
+        }
+
+        .pokemon-card:hover {
+            transform: scale(1.05);
         }
 
         .pokemon-card img {
@@ -35,16 +72,14 @@
             border-radius: 8px;
         }
 
-        @media (max-width: 768px) {
-            .pokemon-card {
-                width: 45%;
-            }
+        .pokemon-card h3 {
+            font-size: 24px;
+            margin: 10px 0;
         }
 
-        @media (max-width: 480px) {
-            .pokemon-card {
-                width: 100%;
-            }
+        .pokemon-card p {
+            font-size: 16px;
+            color: #666;
         }
 
         .pagination {
@@ -54,18 +89,40 @@
         }
 
         .pagination button {
-            padding: 10px;
+            padding: 10px 15px;
             margin: 0 5px;
             cursor: pointer;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
         }
 
-        .filter-container, .sorting-container {
+        .pagination button:hover {
+            background-color: #0056b3;
+        }
+
+        .pagination button:focus {
+            outline: none;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 4px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
             margin-top: 20px;
         }
 
-        .sorting-container button {
-            margin: 0 5px;
+        button:hover {
+            background-color: #0056b3;
         }
+
     </style>
     <script>
         const baseUrl = "http://localhost:8080";

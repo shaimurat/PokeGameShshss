@@ -107,7 +107,7 @@ func main() {
 	http.Handle("/", http.FileServer(http.Dir("./")))
 	http.HandleFunc("/loginPage", rateLimitMiddleware(serveLogin))
 	http.HandleFunc("/mainPage", rateLimitMiddleware(serveMain))
-	http.HandleFunc("/registerPage", rateLimitMiddleware(serveIndex))
+	http.HandleFunc("/registerPage", rateLimitMiddleware(serveRegister))
 	http.HandleFunc("/pokemonsPage", rateLimitMiddleware(servePokemonsPage))
 
 	// Start the server
@@ -330,12 +330,12 @@ func serveLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 // Renders registration page if user is not logged in
-func serveIndex(w http.ResponseWriter, r *http.Request) {
+func serveRegister(w http.ResponseWriter, r *http.Request) {
 	if checkSession(w, r) {
 		http.Redirect(w, r, "/mainPage", http.StatusFound)
 		return
 	}
-	http.ServeFile(w, r, "./index.html")
+	http.ServeFile(w, r, "./register.html")
 }
 
 // Renders the main page if the user is logged in
