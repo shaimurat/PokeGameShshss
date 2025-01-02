@@ -18,14 +18,13 @@ import (
 	"net/smtp"
 	"os"
 	"os/signal"
-
 	"time"
 )
 
 var (
 	collection  *mongo.Collection
 	store       *sessions.CookieStore
-	rateLimiter = rate.NewLimiter(1, 5) // 1 request per second with a burst of 5
+	rateLimiter = rate.NewLimiter(1, 5)
 	logger      = logrus.New()
 )
 
@@ -44,7 +43,7 @@ type User struct {
 }
 
 func main() {
-	// Setup logging
+	// Setup logging configuration
 	logger.SetFormatter(&logrus.JSONFormatter{})
 	logger.SetOutput(os.Stdout)
 	logger.SetLevel(logrus.InfoLevel)
@@ -61,7 +60,7 @@ func main() {
 		cancel()
 	}()
 
-	// Load environment variables
+	// Load environment variables from .env file
 	err := godotenv.Load()
 	if err != nil {
 		logger.Fatal("Error loading .env file")
@@ -97,7 +96,7 @@ func main() {
 	collection = client.Database("PokeGame").Collection("users")
 	logger.Info("Connected to MongoDB!")
 
-	// Start server
+	// Start the HTTP server and handle routes
 	http.HandleFunc("/register", rateLimitMiddleware(registration))
 	http.HandleFunc("/login", rateLimitMiddleware(login))
 	http.HandleFunc("/logout", rateLimitMiddleware(logout))
@@ -111,6 +110,7 @@ func main() {
 	http.HandleFunc("/registerPage", rateLimitMiddleware(serveIndex))
 	http.HandleFunc("/pokemonsPage", rateLimitMiddleware(servePokemonsPage))
 
+	// Start the server
 	server := &http.Server{
 		Addr:    ":8080",
 		Handler: http.DefaultServeMux,
@@ -134,6 +134,7 @@ func main() {
 	logger.Info("Server gracefully stopped")
 }
 
+// Handles risky operations that may fail
 func riskyOperationHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Executing risky operation")
 
@@ -148,6 +149,7 @@ func riskyOperationHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Risky operation succeeded"))
 }
 
+// Simulates a risky operation with a random failure
 func riskyOperation() error {
 	if time.Now().Unix()%2 == 0 {
 		return fmt.Errorf("simulated error")
@@ -155,6 +157,7 @@ func riskyOperation() error {
 	return nil
 }
 
+// Middleware to enforce rate limiting
 func rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !rateLimiter.Allow() {
@@ -166,8 +169,8 @@ func rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// Handles sending email requests
 func sendEmail(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != "POST" {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -184,7 +187,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем email пользователя из сессии
+	// Get user email from session
 	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
 	if !ok {
@@ -192,7 +195,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем email пользователя из базы данных
+	// Retrieve user data from the database
 	var user User
 	objectID, _ := primitive.ObjectIDFromHex(userID)
 	err = collection.FindOne(context.TODO(), bson.M{"_id": objectID}).Decode(&user)
@@ -201,7 +204,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Отправка email
+	// Send email using SMTP
 	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Body)
 	if err != nil {
 		log.Printf("Error sending email: %v", err)
@@ -209,48 +212,39 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Ответ об успешной отправке
+	// Respond with success message
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Email sent successfully"})
 }
 
-// Функция для отправки email через SMTP
+// Sends email using SMTP configuration
 func sendEmailUsingSMTP(fromEmail, subject, text string) error {
-
-	// SMTP сервер, откуда будет отправляться письмо
 	smtpHost := "smtp.gmail.com"
 	smtpPort := "587"
-
-	// Логин и пароль для аккаунта отправителя
-	username := "isiki.edenovy@gmail.com" // Поменяйте на свою переменную окружения
-	password := "lswy dyxe pnjd sjkk"     // Поменяйте на свою переменную окружения
-
-	// Данные письма
+	username := "isiki.edenovy@gmail.com"
+	password := "lswy dyxe pnjd sjkk"
 	toEmail := "hdhdgddh455@gmail.com"
 	body := fmt.Sprintf("Subject: %s\n\n%s\n\nFrom: %s", subject, text, fromEmail)
 
-	// Создаем аутентификацию для отправки письма
 	auth := smtp.PlainAuth("", username, password, smtpHost)
 
-	// Отправляем письмо
+	// Send the email
 	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, fromEmail, []string{toEmail}, []byte(body))
 
 	return err
 }
 
+// Logs out the user by clearing their session
 func logout(w http.ResponseWriter, r *http.Request) {
-	// Получаем сессию
 	session, _ := store.Get(r, "PokeGame")
-
-	// Удаляем все данные из сессии
 	session.Values = nil
-	session.Options.MaxAge = -1 // Set session expiry to -1
-	session.Save(r, w)          // Save the session
+	session.Options.MaxAge = -1
+	session.Save(r, w)
 
-	// Возвращаем ответ о успешном логауте
+	// Respond with success message
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Logged out"})
 }
 
-// Create User
+// Registers a new user by saving their email and password in the database
 func registration(w http.ResponseWriter, r *http.Request) {
 	var user User
 	json.NewDecoder(r.Body).Decode(&user)
@@ -263,7 +257,6 @@ func registration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != mongo.ErrNoDocuments {
-		// Handle any other error (e.g., database connection error)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -287,6 +280,7 @@ func registration(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Handles user login by validating credentials and saving session data
 func login(w http.ResponseWriter, r *http.Request) {
 	var reqUser User
 	if err := json.NewDecoder(r.Body).Decode(&reqUser); err != nil {
@@ -301,32 +295,33 @@ func login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Сравниваем пароли
+	// Check password
 	if !checkPasswordHash(reqUser.Password, dbUser.Password) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "fail", "message": "Invalid password"})
 		return
 	}
 
-	// Если пользователь найден и пароль совпадает, сохраняем сессию
+	// Store session information
 	session, _ := store.Get(r, "PokeGame")
-	session.Values["userID"] = dbUser.ID.Hex() // Сохраняем ID пользователя в сессии
-	session.Save(r, w)                         // Сохраняем сессию
+	session.Values["userID"] = dbUser.ID.Hex()
+	session.Save(r, w)
 
 	json.NewEncoder(w).Encode(map[string]string{"status": "success", "message": "Login successful"})
 }
+
+// Checks the login status by looking for the user session
 func checkLoginStatus(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "PokeGame")
 	userID, ok := session.Values["userID"].(string)
 	if ok && userID != "" {
-		// Если пользователь залогинен, возвращаем статус logged_in
 		json.NewEncoder(w).Encode(map[string]string{"status": "logged_in"})
 	} else {
-		// Если пользователь не залогинен, возвращаем статус not_logged_in
 		json.NewEncoder(w).Encode(map[string]string{"status": "not_logged_in"})
 	}
 }
+
+// Renders login page if user is not logged in
 func serveLogin(w http.ResponseWriter, r *http.Request) {
-	// Если пользователь уже залогинен, перенаправляем на главную страницу
 	if checkSession(w, r) {
 		http.Redirect(w, r, "/mainPage", http.StatusFound)
 		return
@@ -334,8 +329,8 @@ func serveLogin(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./login.html")
 }
 
+// Renders registration page if user is not logged in
 func serveIndex(w http.ResponseWriter, r *http.Request) {
-	// Если пользователь уже залогинен, перенаправляем на главную страницу
 	if checkSession(w, r) {
 		http.Redirect(w, r, "/mainPage", http.StatusFound)
 		return
@@ -343,56 +338,35 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "./index.html")
 }
 
+// Renders the main page if the user is logged in
 func serveMain(w http.ResponseWriter, r *http.Request) {
-	// Если нет активной сессии, редиректим на страницу входа
 	if !checkSession(w, r) {
 		http.Redirect(w, r, "/loginPage", http.StatusFound)
 		return
 	}
-
-	// Если сессия существует, показываем main.html
 	http.ServeFile(w, r, "./main.html")
 }
 
+// Hashes the password using bcrypt
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	return string(bytes), err
 }
 
-// Compare hashed password with plain text
+// Compares the plain password with the hashed one
 func checkPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-func emailHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "PokeGame")
-	userID, ok := session.Values["userID"].(string)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-	var user User
-	objectID, _ := primitive.ObjectIDFromHex(userID)
-	err := collection.FindOne(context.TODO(), bson.M{"_id": objectID}).Decode(&user)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-}
+// Checks if the user is logged in based on the session
 func checkSession(w http.ResponseWriter, r *http.Request) bool {
-	// Получаем сессию
 	session, _ := store.Get(r, "PokeGame")
-
-	// Проверяем, есть ли в сессии значение userID
 	userID, ok := session.Values["userID"].(string)
-	if ok && userID != "" {
-		return true
-	}
-	return false
+	return ok && userID != ""
 }
 
+// Retrieves and returns a list of Pokémon from the database
 func getPokemonsHandler(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "PokeGame")
 	_, ok := session.Values["userID"]
@@ -422,6 +396,7 @@ func getPokemonsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(pokemons)
 }
 
+// Renders the Pokémon page if the user is logged in
 func servePokemonsPage(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "PokeGame")
 	_, ok := session.Values["userID"]
