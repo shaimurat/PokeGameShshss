@@ -1,0 +1,94 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+    text-align: center;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    flex-direction: column;
+}
+
+h1 {
+    font-size: 3em;
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+h2 {
+    font-size: 2em;
+    margin-bottom: 20px;
+    color: #34495e;
+}
+
+/* Стили для полей ввода */
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    max-width: 400px;
+    padding: 12px 20px;
+    margin: 10px 0;
+    border: 2px solid #bdc3c7;
+    border-radius: 8px;
+    font-size: 1rem;
+    box-sizing: border-box;
+}
+
+input[type="email"]:focus,
+input[type="password"]:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+/* Стили для кнопок */
+button {
+    background-color: #3498db;
+    color: white;
+    padding: 15px 25px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    width: 100%;
+    max-width: 400px;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+button:focus {
+    outline: none;
+}
+
+/* Стили для сообщений */
+p {
+    font-size: 1.1rem;
+    margin-top: 20px;
+}
+
+/* Респонсивность */
+@media (max-width: 600px) {
+    h1 {
+        font-size: 2.5em;
+    }
+
+    h2 {
+        font-size: 1.5em;
+    }
+
+    button {
+        padding: 12px 20px;
+        font-size: 1rem;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+        padding: 10px 15px;
+    }
+}
