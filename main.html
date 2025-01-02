@@ -26,11 +26,16 @@
     async function sendEmail() {
         const subject = document.getElementById("subject").value;
         const body = document.getElementById("body").value
+        if (!subject.trim() || !body.trim()) {
+            alert("Subject and body are required.");
+            return;
+        }
+
         const emailData = {
             subject: subject,
             body: body
         }
-        const response = await fetch(`${baseUrl}/sendEmail`, {
+        const response = await fetch(`http://localhost:8080/sendEmail`, {
             method: "POST",
             headers:{"Content-type":"application/json"},
             body: JSON.stringify(emailData)
@@ -47,7 +52,7 @@
 </script>
 <h2>Send email</h2>
 <input type="text" id="subject" placeholder="Write your subject" required />
-<input type="text" id="body" placeholder="Write your subject" required />
+<input type="text" id="body" placeholder="Write your text" required />
 <button onclick="sendEmail()">Send</button>
 <p></p>
 <button onclick="logOut()">LogOut</button>

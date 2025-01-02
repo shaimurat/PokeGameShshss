@@ -106,7 +106,7 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 
 	var emailData struct {
 		Subject string `json:"subject"`
-		Text    string `json:"text"`
+		Body    string `json:"body"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&emailData)
@@ -133,9 +133,10 @@ func sendEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Отправка email
-	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Text)
+	err = sendEmailUsingSMTP(user.Email, emailData.Subject, emailData.Body)
 	if err != nil {
-		http.Error(w, "Failed to send email", http.StatusInternalServerError)
+		log.Printf("Error sending email: %v", err)
+		http.Error(w, "Failed to send email. Please check server logs.", http.StatusInternalServerError)
 		return
 	}
 
@@ -151,12 +152,12 @@ func sendEmailUsingSMTP(fromEmail, subject, text string) error {
 	smtpPort := "587"
 
 	// Логин и пароль для аккаунта отправителя
-	username := os.Getenv("SMTP_USER") // Поменяйте на свою переменную окружения
-	password := os.Getenv("SMTP_PASS") // Поменяйте на свою переменную окружения
+	username := "isiki.edenovy@gmail.com" // Поменяйте на свою переменную окружения
+	password := "lswy dyxe pnjd sjkk"     // Поменяйте на свою переменную окружения
 
 	// Данные письма
 	toEmail := "hdhdgddh455@gmail.com"
-	body := fmt.Sprintf("Subject: %s\n\n%s", subject, text)
+	body := fmt.Sprintf("Subject: %s\n\n%s\n\nFrom: %s", subject, text, fromEmail)
 
 	// Создаем аутентификацию для отправки письма
 	auth := smtp.PlainAuth("", username, password, smtpHost)
