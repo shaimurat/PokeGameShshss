@@ -108,7 +108,9 @@ func main() {
 	http.HandleFunc("/checkLoginStatus", rateLimitMiddleware(checkLoginStatus))
 	http.HandleFunc("/pokemons", rateLimitMiddleware(getPokemonsHandler))
 	http.HandleFunc("/riskyOperation", rateLimitMiddleware(riskyOperationHandler))
-	http.Handle("/", http.FileServer(http.Dir("./")))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/loginPage", http.StatusFound)
+	})
 	http.HandleFunc("/loginPage", rateLimitMiddleware(serveLogin))
 	http.HandleFunc("/mainPage", rateLimitMiddleware(serveMain))
 	http.HandleFunc("/registerPage", rateLimitMiddleware(serveRegister))
