@@ -117,7 +117,7 @@ func main() {
 	http.HandleFunc("/pokemonsPage", rateLimitMiddleware(servePokemonsPage))
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css"))))
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js"))))
-	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./images"))))
+	http.Handle("/images/", http.StripPrefix("/images/", http.FileServer(http.Dir("./pokemons"))))
 
 	// Start the server
 	server := &http.Server{
