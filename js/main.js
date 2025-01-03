@@ -7,7 +7,8 @@
     credentials: 'same-origin',
 });
 
-    const result = await response.json();
+
+        const result = await response.json();
 
     if (response.ok) {
     alert(result.message)
@@ -41,3 +42,24 @@
     alert("An error occurred: " + result.message);
 }
 }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            const response = await fetch("/getUserEmail");
+            if (!response.ok) {
+                throw new Error("Failed to fetch user email");
+            }
+
+            const data = await response.json();
+            const userEmail = data.email;
+
+            if (userEmail) {
+                document.getElementById("user-email").textContent = userEmail;
+            } else {
+                console.error("Email not found");
+            }
+        } catch (error) {
+            console.error("Error fetching user email:", error);
+        }
+    });
+

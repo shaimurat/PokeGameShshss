@@ -115,6 +115,8 @@ func main() {
 	http.HandleFunc("/mainPage", rateLimitMiddleware(serveMain))
 	http.HandleFunc("/registerPage", rateLimitMiddleware(serveRegister))
 	http.HandleFunc("/pokemonsPage", rateLimitMiddleware(servePokemonsPage))
+	http.HandleFunc("/getUserEmail", rateLimitMiddleware(getUserEmailHandler))
+
 	http.Handle("/css/", http.StripPrefix("/css/", http.FileServer(http.Dir("./css"))))
 	http.Handle("/js/", http.StripPrefix("/js/", http.FileServer(http.Dir("./js"))))
 	http.Handle("/pokemons/", http.StripPrefix("/pokemons/", http.FileServer(http.Dir("./pokemons"))))
@@ -349,11 +351,28 @@ func serveRegister(w http.ResponseWriter, r *http.Request) {
 
 // Renders the main page if the user is logged in
 func serveMain(w http.ResponseWriter, r *http.Request) {
-	if !checkSession(w, r) {
+	session, _ := store.Get(r, "PokeGame")
+	userID, ok := session.Values["userID"].(string)
+	if !ok {
 		http.Redirect(w, r, "/loginPage", http.StatusFound)
 		return
 	}
+
+	var user User
+	objectID, _ := primitive.ObjectIDFromHex(userID)
+	err := collection.FindOne(context.TODO(), bson.M{"_id": objectID}).Decode(&user)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Inject email into the page
+	w.Header().Set("Content-Type", "text/html")
 	http.ServeFile(w, r, "./main.html")
+
+	// Add script for email
+	emailScript := fmt.Sprintf("<script>const userEmail = '%s';</script>", user.Email)
+	w.Write([]byte(emailScript))
 }
 
 // Hashes the password using bcrypt
@@ -415,4 +434,26 @@ func servePokemonsPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, "./pokemons.html")
+}
+func getUserEmailHandler(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "PokeGame")
+	userID, ok := session.Values["userID"].(string)
+	if !ok {
+		http.Error(w, "User not logged in", http.StatusUnauthorized)
+		return
+	}
+
+	var user User
+	objectID, _ := primitive.ObjectIDFromHex(userID)
+	err := collection.FindOne(context.TODO(), bson.M{"_id": objectID}).Decode(&user)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Возвращаем email в формате JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"email": user.Email,
+	})
 }
